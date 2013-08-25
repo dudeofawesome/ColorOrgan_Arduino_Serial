@@ -1,11 +1,7 @@
-
-//import processing.serial.*;
-import jssc.SerialPortList;
-import jssc.SerialPort;
-import jssc.SerialPortException;
+import processing.serial.*;
 
 // Sound Input and processing objects
-SerialPort myPort;
+Serial myPort;
 ColorOrganCalculator coc;
 
 // Color state
@@ -56,17 +52,9 @@ void setup() {
   drawState[ledCount*2] = 0; 
   drawState[ledCount*2 + 1] = 0; // Terminating bytes
 
-  println(SerialPortList.getPortNames());
-  // Init communications
-  String portName = SerialPortList.getPortNames()[0];
+  String portName = Serial.list()[4];
   println(portName);
-  myPort = new SerialPort(portName);
-  try {
-     myPort.openPort();
-     myPort.setParams(SerialPort.BAUDRATE_115200,
-                          SerialPort.DATABITS_8,
-                          SerialPort.STOPBITS_1,
-                          SerialPort.PARITY_NONE);
+  myPort = new Serial(this, portName, 115200);
   
   amplitudes = new float[bandLimit];
   lastAmplitudes = new float[bandLimit];
@@ -74,32 +62,31 @@ void setup() {
   lastResponse = 0;
   deviceState = 0;
 
-  myPort.purgePort(SerialPort.PURGE_RXCLEAR);
-  myPort.writeByte((byte)'m');
+  myPort.clear();
+  myPort.write((byte)'m');
   waitUntilByte();
 
-  myPort.writeByte((byte)'c'); 
+  myPort.write((byte)'c'); 
   waitUntilByte();
   println();
   println("colorIndexLen="+(byte)colorIndex.length);
   
-  myPort.writeByte((byte)colorIndex.length); 
+  myPort.write((byte)colorIndex.length); 
   for (int i = 0; i < colorIndex.length; ++i) {
-    myPort.writeByte((byte)((colorIndex[i])>>>16));
-    myPort.writeByte((byte)((colorIndex[i]&0x00FF00)>>>8));
-    myPort.writeByte((byte)((colorIndex[i]&0x0000FF)));
+    myPort.write((byte)((colorIndex[i])>>>16));
+    myPort.write((byte)((colorIndex[i]&0x00FF00)>>>8));
+    myPort.write((byte)((colorIndex[i]&0x0000FF)));
   }
   waitUntilByte();
-  myPort.writeByte((byte)0); waitUntilByte();
+  myPort.write((byte)0); waitUntilByte();
 
-  while (myPort.getInputBufferBytesCount() > 0) {
+  while (myPort.available() > 0) {
     getResponse();
   }
   println();
   println("--Init Done");
-  myPort.writeByte((byte)'a'); 
+  myPort.write((byte)'a'); 
   lastUpdate = millis();
-  } catch (SerialPortException ex) { ; }
 }
 
 void draw() {
@@ -204,25 +191,24 @@ void draw() {
 }*/
 
 void updateScreen3() {
-  try {
   // Wait until the controller sends back a byte to indicate that it is ready, then
   //   send the current amplitudes.
-  if (myPort.getInputBufferBytesCount() > 0) {
-    while (myPort.getInputBufferBytesCount() > 0) {
+  if (myPort.available() > 0) {
+    while (myPort.available() > 0) {
       getResponse();
     }
     
     switch (deviceState) {
       case 'm':
-        myPort.writeByte((byte)'a');
+        myPort.write((byte)'a');
       case 'a':
         for (int i = 0; i < bandLimit; ++i) {
           amps[i] = unsignedByte(amplitudes[i]*255);
         } //println(amplitudes); println(amps);
     
         //myPort.clear();
-        myPort.writeByte((byte)amps.length);  //println(amps.length);
-        myPort.writeBytes(amps); //println(amps);
+        myPort.write((byte)amps.length);  //println(amps.length);
+        myPort.write(amps); //println(amps);
     
         coc.clearPSU();
     
@@ -232,16 +218,13 @@ void updateScreen3() {
       
     }
   } // else { println("MISS!");}
-  } catch (SerialPortException ex) { ; }
 }
 
 public void stop() {
-  try {
   // always close Minim audio classes when you are done with them
   coc.stop();
-  myPort.closePort();
+  myPort.stop();
   super.stop();
-  } catch (SerialPortException ex) { ; }
 }
 
 int rgbTo15bit( byte rr, byte gg, byte bb ) {
@@ -301,25 +284,22 @@ char waitUntilByte() {
 }
 
 char waitUntilByte(int timeoutMillis) {
-  try {
   int delays = 0;
-  while (myPort.getInputBufferBytesCount() == 0) {
+  while (myPort.available() == 0) {
     delay(1);
     ++delays;
 
     if (delays > timeoutMillis) {
       println("Tired of waiting");
-      myPort.writeByte((byte)0);
+      myPort.write((byte)0);
       delays = 0;
     }
   }
-} catch (SerialPortException ex) { ; }
   return getResponse();
 }
 
 char getResponse() {
-  try {
-  lastResponse = (char)myPort.readBytes(1)[0];
+  lastResponse = (char)myPort.read();
   if (lastResponse == 'e') {
     deviceState = 'm';
   }
@@ -327,7 +307,6 @@ char getResponse() {
    deviceState = lastResponse;
  }
  print(lastResponse);
- } catch (SerialPortException ex) { ; }
  return lastResponse;
 }
 
