@@ -16,26 +16,14 @@ byte bb;
 // Communications
 boolean inputReady=false;
 long lastUpdate;
-byte[] drawState; // I'm assuming 15-bit light data
-byte lowByte;
-byte highByte;
 char lastResponse;
 char deviceState;
 
-// Constants to configure
-int ledCount = 50;  //How many LEDs in your string.
-/*long[] colorIndex = { 
-  0x0000ff, 0x0000ff, 0x0000ff, 0x0000ff, 0x0000ff, 0x0000ff,
-  0x00ff00, 0x00ff00, 0x00ff00, 0x00ff00, 0x00ff00, 0x00ff00
-}; // Standard HTML 24-bit RGB hex color notation.*/
 long[] colorIndex = { 
   0xff0000, 0xff0000, 0xff0000, 0xffff00, 0x00ff00, 0x00ff00, 
   0x00ff00, 0x0000ff, 0x0000ff, 0x8000ff, 0xff00ff, 0xff00ff
 }; // Standard HTML 24-bit RGB hex color notation.
-/*int[] colorIndex = { 
- 0xff0000, 0xff8000, 0xffff00, 0x80ff00, 0x00ff00, 0x00ff80,
- 0x00ffff, 0x0080ff, 0x0000ff, 0x8000ff, 0xff00ff, 0xff0080
- }; // Standard HTML 24-bit RGB hex color notation.*/
+
 int bandLimit = 12;
 int startingQ = 55;
 int octaveDivisions = 2;
@@ -47,15 +35,10 @@ void setup() {
   coc = new ColorOrganCalculator(colorIndex, bandLimit, startingQ, octaveDivisions);
   coc.init();
 
-  // Init tracking data
-  drawState = new byte[ledCount*2+2];
-  drawState[ledCount*2] = 0; 
-  drawState[ledCount*2 + 1] = 0; // Terminating bytes
-
   String portName = Serial.list()[4];
   println(portName);
   myPort = new Serial(this, portName, 115200);
-  
+
   amplitudes = new float[bandLimit];
   lastAmplitudes = new float[bandLimit];
   amps = new byte[bandLimit];
@@ -70,7 +53,7 @@ void setup() {
   waitUntilByte();
   println();
   println("colorIndexLen="+(byte)colorIndex.length);
-  
+
   myPort.write((byte)colorIndex.length); 
   for (int i = 0; i < colorIndex.length; ++i) {
     myPort.write((byte)((colorIndex[i])>>>16));
@@ -78,9 +61,10 @@ void setup() {
     myPort.write((byte)((colorIndex[i]&0x0000FF)));
   }
   waitUntilByte();
-  myPort.write((byte)0); waitUntilByte();
+  myPort.write((byte)0); 
+  waitUntilByte();
 
-  while (myPort.available() > 0) {
+  while (myPort.available () > 0) {
     getResponse();
   }
   println();
@@ -95,127 +79,33 @@ void draw() {
   amplitudes = coc.getCurrentLevels();
   posOffset = coc.getPosOffset();
 
-  updateScreen3();
+  updateScreen();
 }
 
-/*void updateScreen() {
-  // Wait until the controller sends back a byte to indicate that it is ready, then
-  //   send the current state.
-  for (int i=0; i < amplitudes.length; i++) {
-    long col = colorIndex[i%colorIndex.length];
-    rr = (byte)( ((col&0xff0000) >> 16)*amplitudes[i] );
-    gg = (byte)( ((col&0x00ff00) >> 8)*amplitudes[i]  ); 
-    bb = (byte)( ((col&0x0000ff)     )*amplitudes[i]  );
-
-    // Set the communications byte array from the colors.
-    lowByte = (byte)(rgbTo15bit(rr, gg, bb) >>> 8);
-    highByte = (byte)(rgbTo15bit(rr, gg, bb) &0x00ff);
-
-    // Place the bytes in the array. If there fewer bands than lights,
-    //   repeat until we run out of lights.
-    //   (There is almost certainly a better way to do this...)
-    for (int j=0; ((i+posOffset)%amplitudes.length)*2+j+1 < ledCount*2; j+=amplitudes.length*2) {
-      drawState[((i+posOffset)%amplitudes.length)*2+j] = lowByte;
-      drawState[((i+posOffset)%amplitudes.length)*2+j+1] = highByte;
-    }
-  }
-
-  if (myPort.available() > 0) {
-
-    //myPort.clear();
-    myPort.write(0); 
-    myPort.write(0);
-    myPort.write(drawState); 
-
-    coc.clearPSU();
-
-    lastUpdate = millis();
-  }
-
-  else println(millis() - lastUpdate);
-}*/
-
-/*void updateScreen2() {
-  // Wait until the controller sends back a byte to indicate that it is ready, then
-  //   send the current state.
-  float maxAmp = -1.0;
-  int maxAmpIndex = 0;
-  byte maxLowByte = 0;
-  byte maxHighByte = (byte)0x0080;
-
-  for (int i=0; i < amplitudes.length; i++) {
-    long col = colorIndex[i%colorIndex.length];
-    rr = (byte)( ((col&0xff0000) >> 16)*amplitudes[i] );
-    gg = (byte)( ((col&0x00ff00) >> 8)*amplitudes[i]  ); 
-    bb = (byte)( ((col&0x0000ff)     )*amplitudes[i]  );
-
-    // Set the communications byte array from the colors.
-    lowByte = (byte)(rgbTo15bit(rr, gg, bb) >>> 8);
-    highByte = (byte)(rgbTo15bit(rr, gg, bb) &0x00ff);
-
-    // Place the bytes in the array. If there fewer bands than lights,
-    //   repeat until we run out of lights.
-    //   (There is almost certainly a better way to do this...)
-    //for (int j=0; ((i+posOffset)%amplitudes.length)*2+j+1 < ledCount*2; j+=amplitudes.length*2) {
-    // drawState[((i+posOffset)%amplitudes.length)*2+j] = lowByte;
-     //drawState[((i+posOffset)%amplitudes.length)*2+j+1] = highByte;
-     //}
-
-    if (maxAmp < amplitudes[i] 
-      || (maxAmp == amplitudes[i] && lastAmplitudes[maxAmpIndex] > lastAmplitudes[i])
-      ) {
-      maxAmp = amplitudes[i];
-      maxAmpIndex = i;
-      maxLowByte = lowByte;
-      maxHighByte = highByte;
-    }
-  }
-  //println("maxLB/MaxHB="+ maxLowByte + "/" + maxHighByte);
-
-  for (int i=0; i < ledCount*2; i += 2) {
-    drawState[i] = maxLowByte;
-    drawState[i+1] = maxHighByte;
-  }
-
-  if (myPort.available() > 0) {
-    myPort.clear();
-    myPort.write(0); 
-    myPort.write(0);
-    myPort.write(drawState); 
-
-    coc.clearPSU();
-
-    lastUpdate = millis();
-  }
-  else println(millis() - lastUpdate);
-}*/
-
-void updateScreen3() {
+void updateScreen() {
   // Wait until the controller sends back a byte to indicate that it is ready, then
   //   send the current amplitudes.
   if (myPort.available() > 0) {
-    while (myPort.available() > 0) {
+    while (myPort.available () > 0) {
       getResponse();
     }
-    
+
     switch (deviceState) {
-      case 'm':
-        myPort.write((byte)'a');
-      case 'a':
-        for (int i = 0; i < bandLimit; ++i) {
-          amps[i] = unsignedByte(amplitudes[i]*255);
-        } //println(amplitudes); println(amps);
-    
-        //myPort.clear();
-        myPort.write((byte)amps.length);  //println(amps.length);
-        myPort.write(amps); //println(amps);
-    
-        coc.clearPSU();
-    
-        println(" time: " + (millis() - lastUpdate));
-        lastUpdate = millis();
-        break;
-      
+    case 'm':
+      myPort.write((byte)'a');
+    case 'a':
+      for (int i = 0; i < bandLimit; ++i) {
+        amps[i] = unsignedByte(amplitudes[i]*255);
+      } //println(amplitudes); println(amps);
+
+      myPort.write((byte)amps.length);  //println(amps.length);
+      myPort.write(amps); //println(amps);
+
+      coc.clearPSU();
+
+      println(" time: " + (millis() - lastUpdate));
+      lastUpdate = millis();
+      break;
     }
   } // else { println("MISS!");}
 }
@@ -225,10 +115,6 @@ public void stop() {
   coc.stop();
   myPort.stop();
   super.stop();
-}
-
-int rgbTo15bit( byte rr, byte gg, byte bb ) {
-  return ((rr&0xf8)<<7)|((gg&0xf8)<<2)|((bb&0xf8)>>>3)|0x8000;
 }
 
 // This is used primarily when taking audio from an external input. Since
@@ -255,37 +141,13 @@ void keyReleased() {
   }
 }
 
-/*int gotExpectedReply(String expectedResponse) {
-  while (myPort.available () > 0) {
-    response += getResponse(); 
-  } if (response.length() > 0) println(response);
-  
-  if (response.length() < expectedResponse.length()) {
-    if (millis() - lastUpdate > 5000) {
-      println("Tired of waiting");
-      return -1;
-    } 
-    else {
-      return 0; //Not yet
-    }
-  } 
-  else if (response.substring(response.length() - expectedResponse.length()).equals(expectedResponse)) {
-      response = "";
-      return 1; //Success!
-    }
-  else {
-    response = "";
-    return -1; //failure
-  }
-}*/
-
 char waitUntilByte() {
   return waitUntilByte(5000);
 }
 
 char waitUntilByte(int timeoutMillis) {
   int delays = 0;
-  while (myPort.available() == 0) {
+  while (myPort.available () == 0) {
     delay(1);
     ++delays;
 
@@ -303,11 +165,12 @@ char getResponse() {
   if (lastResponse == 'e') {
     deviceState = 'm';
   }
- else {
-   deviceState = lastResponse;
- }
- print(lastResponse);
- return lastResponse;
+  else {
+    deviceState = lastResponse;
+  }
+  print(lastResponse);
+
+  return lastResponse;
 }
 
 byte unsignedByte( int val ) { 
