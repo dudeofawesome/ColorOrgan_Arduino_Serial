@@ -28,50 +28,31 @@ class ColorOrganCalculator {
   protected float maxPeak;
   protected int maxPeakIdx;
   protected int bandNumber;
+  protected int beatRadix;
+  public int beatNumber;
   protected int lastUpdate;
 
-  // Color state
-  int posOffset = 0;
-
   public long[] colorIndex; // Standard HTML 24-bit RGB hex color notation.
-  /*int[] colorIndex = { 
-   0xff0000, 0xff8000, 0xffff00, 0x80ff00, 0x00ff00, 0x00ff80,
-   0x00ffff, 0x0080ff, 0x0000ff, 0x8000ff, 0xff00ff, 0xff0080
-   }; // Standard HTML 24-bit RGB hex color notation.*/
-  int bandLimit = 12;
+  public int bandLimit = 12;
   public int startingQ = 55;
   public int octaveDivisions = 2;
 
   public ColorOrganCalculator() {
-    long[] colors = {
-      0xff0000, 0xff0000, 0xff0000, 0xffff00, 0x00ff00, 0x00ff00, 
-      0x00ff00, 0x0000ff, 0x0000ff, 0x8000ff, 0xff00ff, 0xff00ff
-    };
-
-    this.colorIndex = colorIndex;
-    this.bandLimit = 12;
-    this.startingQ = 55;
-    this.octaveDivisions = 2;
-
-    bufferSize = 2048;
-    minBeatPeriod = 300; // if new "beat" is < 300 ms after last beat, ignore it.
-
-    decay = 0.99f;
-    thresBot = 0.4;
-    //thresTop = 0.9;
-    //thresBot = 0.0;
-    thresTop = 1.0;
-    minPeak = 0.1; // Used to stop lights flickering at start due to inaudible noise
-    trackNoiseLvl = false;
-    maxPeak = 0;
-    maxPeakIdx = 0;
+    this(new long[] {0xff0000, 0xff0000, 0xff0000, 0xffff00, 0x00ff00, 0x00ff00, 
+                     0x00ff00, 0x0000ff, 0x0000ff, 0x8000ff, 0xff00ff, 0xff00ff},
+         12, 55, 2, 0);
   }
 
-  public ColorOrganCalculator(long[] colorIndex, int bandLimit, int startingQ, int octaveDivisions) {
+  public ColorOrganCalculator(long[] colorIndex, 
+                              int bandLimit, 
+                              int startingQ, 
+                              int octaveDivisions,
+                              int beatRadix) {
     this.colorIndex = colorIndex;
     this.bandLimit = bandLimit;
     this.startingQ = startingQ;
     this.octaveDivisions = octaveDivisions;
+    this.beatRadix = beatRadix;
 
     bufferSize = 2048;
     minBeatPeriod = 300; // if new "beat" is < 300 ms after last beat, ignore it.
@@ -84,6 +65,7 @@ class ColorOrganCalculator {
     trackNoiseLvl = false;
     maxPeak = 0;
     maxPeakIdx = 0;
+    beatNumber = 0;
   }
 
   public void init() {  
@@ -114,15 +96,9 @@ class ColorOrganCalculator {
   }
 
   public float[] getCurrentLevels() {
-    //analyzeInput();
-
     checkPeaks();
 
     return getAmplitudes();
-  }
-
-  public int getPosOffset() {
-    return posOffset;
   }
 
   public int[] getCurrentColors() {
@@ -163,7 +139,7 @@ class ColorOrganCalculator {
     // Raise the other peaks based on the max peak. This allows a few
     //   fequency bands to dominate the display when those frequencies also
     //   dominate the sound spectrum. The power function makes more distant
-    //   frequency bands less affected by this shaping. The value of 0.8 
+    //   frequency bands less affected by this shaping. The value of 0.9 
     //   (and heck, the function) was the result of crude experimentation.
     //   There are probably better methods for this, but it seems to do
     //   about what I want.
@@ -175,8 +151,8 @@ class ColorOrganCalculator {
     if (trackNoiseLvl) setNoiseFloor();
 
     // I'm not sure I'm totally sold on this. It seems a little busy.
-    if (beat.isKick()) posOffset++;
-    if (posOffset >= bandNumber) posOffset = 0;
+    if (beat.isKick()) beatNumber++;
+    if (beatNumber >= beatRadix) beatNumber = 0;
     
     lastUpdate = millis();
   }

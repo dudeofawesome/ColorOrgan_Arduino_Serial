@@ -32,7 +32,7 @@ int octaveDivisions = 2;
 void setup() {
   frameRate(40);
   // Init all the sound objects
-  coc = new ColorOrganCalculator(colorIndex, bandLimit, startingQ, octaveDivisions);
+  coc = new ColorOrganCalculator(colorIndex, bandLimit, startingQ, octaveDivisions, bandLimit);
   coc.init();
 
   String portName = Serial.list()[4];
@@ -45,10 +45,16 @@ void setup() {
   lastResponse = 0;
   deviceState = 0;
 
+  // Enter command mode
   myPort.clear();
   myPort.write((byte)'m');
   waitUntilByte();
+  
+  // Set the offset flag
+  myPort.write((byte)'O');
+  waitUntilByte();
 
+  // Set up the colors
   myPort.write((byte)'c'); 
   waitUntilByte();
   println();
@@ -77,7 +83,7 @@ void draw() {
   coc.analyzeInput();
   System.arraycopy(amplitudes, 0, lastAmplitudes, 0, amplitudes.length);
   amplitudes = coc.getCurrentLevels();
-  posOffset = coc.getPosOffset();
+  posOffset = coc.beatNumber;
 
   updateScreen();
 }
@@ -99,6 +105,7 @@ void updateScreen() {
       } //println(amplitudes); println(amps);
 
       myPort.write((byte)amps.length);  //println(amps.length);
+      myPort.write((byte)posOffset); //println(posOffset);
       myPort.write(amps); //println(amps);
 
       coc.clearPSU();
