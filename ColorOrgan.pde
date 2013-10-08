@@ -28,6 +28,8 @@ int bandLimit = 12;
 int startingQ = 55;
 int octaveDivisions = 2;
 
+boolean sendOffset = true;
+
 // ********** BEGIN ***********
 void setup() {
   frameRate(40);
@@ -35,8 +37,8 @@ void setup() {
   coc = new ColorOrganCalculator(colorIndex, bandLimit, startingQ, octaveDivisions, bandLimit);
   coc.init();
 
-  String portName = Serial.list()[4];
-  println(portName);
+  String portName = Serial.list()[8];
+  println(Serial.list());
   myPort = new Serial(this, portName, 115200);
 
   amplitudes = new float[bandLimit];
@@ -51,7 +53,12 @@ void setup() {
   waitUntilByte();
   
   // Set the offset flag
-  myPort.write((byte)'O');
+  if (sendOffset) {
+    myPort.write((byte)'O');
+  }
+  else {
+    myPort.write((byte)'o');
+  }
   waitUntilByte();
 
   // Set up the colors
