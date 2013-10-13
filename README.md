@@ -1,5 +1,5 @@
-ColorOrgan_Arduino_Serial
-=========================
+Color Organ Arduino Serial
+==========================
 
 Color organ runs in Processing, pushes data to Arduino over serial
 
