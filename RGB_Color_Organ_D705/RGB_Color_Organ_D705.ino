@@ -114,6 +114,7 @@ void loop() {
   int mungedByte;
   
   mungedByte = Serial.read(); 
+  //Serial.print(mungedByte);
   if (mungedByte >= 0) {
     inByte = lowByte(mungedByte);
     

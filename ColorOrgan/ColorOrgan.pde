@@ -77,8 +77,13 @@ void setup() {
   coc = new ColorOrganCalculator(colorIndex, bandLimit, startingQ, octaveDivisions, bandLimit);
   coc.init();
 
-  String portName = Serial.list()[8];
-  println(Serial.list());
+  String[] serials = Serial.list();
+  String portName = serials[serials.length - 1];
+  for (int i = 0; i < serials.length; i++) {
+    if (serials[i].contains("/dev/tty.usbmodem")) {
+      portName = serials[i];      
+    }
+  }
   myPort = new Serial(this, portName, 115200);
 
   amplitudes = new float[bandLimit];
