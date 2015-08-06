@@ -1,0 +1,1 @@
+javac -cp .:../../../ -target 1.6 -source 1.6 MenuModulePause.java

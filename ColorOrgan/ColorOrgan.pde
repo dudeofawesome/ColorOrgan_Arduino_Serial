@@ -1,15 +1,15 @@
 /*
 Color Organ Arduino Serial
 
-Gets amplitude information from a color organ calculator object, 
+Gets amplitude information from a color organ calculator object,
 then sends the amplitudes via serial to an Arduino, which controls
 attached lights to make a sound-reactive light display.
 
 Copyright (C) 2013 Douglas A. Telfer
 
-This source code is released simultaneously under the GNU GPL v2 
-and the Mozilla Public License, v. 2.0; derived works may use 
-either license, a compatible license, or both licenses as suits 
+This source code is released simultaneously under the GNU GPL v2
+and the Mozilla Public License, v. 2.0; derived works may use
+either license, a compatible license, or both licenses as suits
 the needs of the derived work.
 
 Additional licensing terms may be available; contact the author
@@ -39,10 +39,22 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/
 */
 
 import processing.serial.*;
+import java.awt.SystemTray;
+import java.awt.Toolkit;
+import java.awt.Image;
+import javax.swing.ImageIcon;
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
+import java.awt.PopupMenu;
+import java.awt.MenuItem;
+import java.awt.CheckboxMenuItem;
+import java.awt.AWTException;
 
 // Sound Input and processing objects
 Serial myPort;
 ColorOrganCalculator coc;
+MenuHandler menu = null;
+boolean running = true;
 
 // Color state
 float[] amplitudes;
@@ -59,8 +71,8 @@ long lastUpdate;
 char lastResponse;
 char deviceState;
 
-long[] colorIndex = { 
-  0xff0000, 0xff0000, 0xff0000, 0xffff00, 0x00ff00, 0x00ff00, 
+long[] colorIndex = {
+  0xff0000, 0xff0000, 0xff0000, 0xffff00, 0x00ff00, 0x00ff00,
   0x00ff00, 0x0000ff, 0x0000ff, 0x8000ff, 0xff00ff, 0xff00ff
 }; // Standard HTML 24-bit RGB hex color notation.
 
@@ -70,8 +82,16 @@ int octaveDivisions = 2;
 
 boolean sendOffset = true;
 
+boolean displayable() {
+  return false;
+}
+
 // ********** BEGIN ***********
 void setup() {
+  System.setProperty("java.awt.headless", "true");
+
+  loadMenu();
+
   frameRate(40);
   // Init all the sound objects
   coc = new ColorOrganCalculator(colorIndex, bandLimit, startingQ, octaveDivisions, bandLimit);
@@ -81,7 +101,7 @@ void setup() {
   String portName = serials[serials.length - 1];
   for (int i = 0; i < serials.length; i++) {
     if (serials[i].contains("/dev/tty.usbmodem")) {
-      portName = serials[i];      
+      portName = serials[i];
     }
   }
   myPort = new Serial(this, portName, 115200);
@@ -96,7 +116,7 @@ void setup() {
   myPort.clear();
   myPort.write((byte)'m');
   waitUntilByte();
-  
+
   // Set the offset flag
   if (sendOffset) {
     myPort.write((byte)'O');
@@ -107,19 +127,19 @@ void setup() {
   waitUntilByte();
 
   // Set up the colors
-  myPort.write((byte)'c'); 
+  myPort.write((byte)'c');
   waitUntilByte();
   println();
   println("colorIndexLen="+(byte)colorIndex.length);
 
-  myPort.write((byte)colorIndex.length); 
+  myPort.write((byte)colorIndex.length);
   for (int i = 0; i < colorIndex.length; ++i) {
     myPort.write((byte)((colorIndex[i])>>>16));
     myPort.write((byte)((colorIndex[i]&0x00FF00)>>>8));
     myPort.write((byte)((colorIndex[i]&0x0000FF)));
   }
   waitUntilByte();
-  myPort.write((byte)0); 
+  myPort.write((byte)0);
   waitUntilByte();
 
   while (myPort.available () > 0) {
@@ -127,17 +147,30 @@ void setup() {
   }
   println();
   println("--Init Done");
-  myPort.write((byte)'a'); 
+  myPort.write((byte)'a');
   lastUpdate = millis();
 }
 
-void draw() {
-  coc.analyzeInput();
-  System.arraycopy(amplitudes, 0, lastAmplitudes, 0, amplitudes.length);
-  amplitudes = coc.getCurrentLevels();
-  posOffset = coc.beatNumber;
+void loadMenu () {
+  menu = new MenuHandler();
+}
 
-  updateScreen();
+void draw() {
+  if (running) {
+    coc.analyzeInput();
+    System.arraycopy(amplitudes, 0, lastAmplitudes, 0, amplitudes.length);
+    amplitudes = coc.getCurrentLevels();
+    posOffset = coc.beatNumber;
+
+    updateScreen();
+  } else {
+    myPort.write((byte)colorIndex.length);
+    for (int i = 0; i < colorIndex.length; ++i) {
+      myPort.write((byte)((colorIndex[i])>>>16));
+      myPort.write((byte)((colorIndex[i]&0x00FF00)>>>8));
+      myPort.write((byte)((colorIndex[i]&0x0000FF)));
+    }
+  }
 }
 
 void updateScreen() {
@@ -162,7 +195,7 @@ void updateScreen() {
 
       coc.clearPSU();
 
-      println(" time: " + (millis() - lastUpdate));
+//      println(" time: " + (millis() - lastUpdate));
       lastUpdate = millis();
       break;
     }
@@ -177,13 +210,13 @@ public void stop() {
 }
 
 // This is used primarily when taking audio from an external input. Since
-//   I automatically reset levels based on recent input volume, even a 
-//   small amount of noise from the external source will eventually light 
-//   up some of the lights, which can ruin the effect of quiet passages 
-//   in the music. The somewhat crude solution is to set a noise threshold 
-//   when no music is playing. Sound must exceed the volume of the noise in 
-//   order to be recognized. This check is done on a per-band basis, so a 
-//   lot of noise in one band (e.g. a 60Hz hum) won't interfere with the 
+//   I automatically reset levels based on recent input volume, even a
+//   small amount of noise from the external source will eventually light
+//   up some of the lights, which can ruin the effect of quiet passages
+//   in the music. The somewhat crude solution is to set a noise threshold
+//   when no music is playing. Sound must exceed the volume of the noise in
+//   order to be recognized. This check is done on a per-band basis, so a
+//   lot of noise in one band (e.g. a 60Hz hum) won't interfere with the
 //   sensitivity of other bands.
 //
 //   Anyways, to set the noise threshold, hold down 'n' when no music is
@@ -227,15 +260,14 @@ char getResponse() {
   else {
     deviceState = lastResponse;
   }
-  print(lastResponse);
+//  print(lastResponse);
 
   return lastResponse;
 }
 
-byte unsignedByte( int val ) { 
+byte unsignedByte( int val ) {
   return (byte)( val > 127 ? val - 256 : val );
 }
-byte unsignedByte( float val ) { 
+byte unsignedByte( float val ) {
   return (byte)( (int)val > 127 ? (int)val - 256 : (int)val );
 }
-

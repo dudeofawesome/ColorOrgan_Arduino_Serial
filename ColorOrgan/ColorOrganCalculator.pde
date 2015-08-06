@@ -7,9 +7,9 @@ shaping with the goal of producing an interesting light display).
 
 Copyright (C) 2013 Douglas A. Telfer
 
-This source code is released simultaneously under the GNU GPL v2 
-and the Mozilla Public License, v. 2.0; derived works may use 
-either license, a compatible license, or both licenses as suits 
+This source code is released simultaneously under the GNU GPL v2
+and the Mozilla Public License, v. 2.0; derived works may use
+either license, a compatible license, or both licenses as suits
 the needs of the derived work.
 
 Additional licensing terms may be available; contact the author
@@ -40,6 +40,9 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import ddf.minim.analysis.*;
 import ddf.minim.*;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.io.FileNotFoundException;
 
 class ColorOrganCalculator {
   protected Minim minim;
@@ -75,14 +78,14 @@ class ColorOrganCalculator {
   public int octaveDivisions = 2;
 
   public ColorOrganCalculator() {
-    this(new long[] {0xff0000, 0xff0000, 0xff0000, 0xffff00, 0x00ff00, 0x00ff00, 
+    this(new long[] {0xff0000, 0xff0000, 0xff0000, 0xffff00, 0x00ff00, 0x00ff00,
                      0x00ff00, 0x0000ff, 0x0000ff, 0x8000ff, 0xff00ff, 0xff00ff},
          12, 55, 2, 0);
   }
 
-  public ColorOrganCalculator(long[] colorIndex, 
-                              int bandLimit, 
-                              int startingQ, 
+  public ColorOrganCalculator(long[] colorIndex,
+                              int bandLimit,
+                              int startingQ,
                               int octaveDivisions,
                               int beatRadix) {
     this.colorIndex = colorIndex;
@@ -105,7 +108,20 @@ class ColorOrganCalculator {
     beatNumber = 0;
   }
 
-  public void init() {  
+  public String sketchPath (String fileName) {
+      return fileName;
+  }
+
+  public InputStream createInput (String fileName) {
+      try {
+          return new FileInputStream(fileName);
+      } catch (FileNotFoundException e) {
+          e.printStackTrace();
+      }
+      return null;
+  }
+
+  public void init() {
     // Init all the sound objects
     minim = new Minim(this);
     myInput = minim.getLineIn(Minim.STEREO, bufferSize);
@@ -149,7 +165,7 @@ class ColorOrganCalculator {
     // Grab the new level data. Check to see if it represents a new peak.
     //   Also check to see if there is a new max peak.
     //   If there are no new peaks, decay the levels of the current peaks.
-    //     (this acts as a primitive auto-level control, and helps emphasize 
+    //     (this acts as a primitive auto-level control, and helps emphasize
     //      changes in volume)
     for (int i=0; i < bandNumber; i++) {
       if (fftL.getAvg(i) + fftR.getAvg(i) > peaks[i]) {
@@ -157,8 +173,8 @@ class ColorOrganCalculator {
         // Shape peaks to pink noise curve
         peaks[i] *= pow(10.0, (3.0/20) * (i/octaveDivisions));
 
-        if (peaks[i] > maxPeak) { 
-          newMaxPeak = true; 
+        if (peaks[i] > maxPeak) {
+          newMaxPeak = true;
           maxPeak = peaks[i];
           maxPeakIdx = i;
         }
@@ -176,7 +192,7 @@ class ColorOrganCalculator {
     // Raise the other peaks based on the max peak. This allows a few
     //   fequency bands to dominate the display when those frequencies also
     //   dominate the sound spectrum. The power function makes more distant
-    //   frequency bands less affected by this shaping. The value of 0.9 
+    //   frequency bands less affected by this shaping. The value of 0.9
     //   (and heck, the function) was the result of crude experimentation.
     //   There are probably better methods for this, but it seems to do
     //   about what I want.
@@ -190,7 +206,7 @@ class ColorOrganCalculator {
     // I'm not sure I'm totally sold on this. It seems a little busy.
     if (beat.isKick()) beatNumber++;
     if (beatNumber >= beatRadix) beatNumber = 0;
-    
+
     lastUpdate = millis();
   }
 
@@ -215,9 +231,9 @@ class ColorOrganCalculator {
 
       // Hold on the biggest amplitudes we've seen since the last update. This
       //   is so that we don't lose transients if it takes too long to communicate
-      //   with the lights. I'm not sure how much of a difference this makes 
+      //   with the lights. I'm not sure how much of a difference this makes
       //   though.
-      if (amp > peakSinceUpdate[i]) peakSinceUpdate[i]=amp; 
+      if (amp > peakSinceUpdate[i]) peakSinceUpdate[i]=amp;
       else amp=peakSinceUpdate[i];
 
       amplitudes[i] = amp;
@@ -234,7 +250,7 @@ class ColorOrganCalculator {
 
       // Set the colors from the amplitudes
       colors[i*3+0] = (byte)( ((col&0xff0000) >> 16)*amplitudes[i] );
-      colors[i*3+1] = (byte)( ((col&0x00ff00) >> 8 )*amplitudes[i] ); 
+      colors[i*3+1] = (byte)( ((col&0x00ff00) >> 8 )*amplitudes[i] );
       colors[i*3+2] = (byte)( ((col&0x0000ff)      )*amplitudes[i] );
     }
 
@@ -248,13 +264,13 @@ class ColorOrganCalculator {
   }
 
   // This is used primarily when taking audio from an external input. Since
-  //   I automatically reset levels based on recent input volume, even a 
-  //   small amount of noise from the external source will eventually light 
-  //   up some of the lights, which can ruin the effect of quiet passages 
-  //   in the music. The somewhat crude solution is to set a noise threshold 
-  //   when no music is playing. Sound must exceed the volume of the noise in 
-  //   order to be recognized. This check is done on a per-band basis, so a 
-  //   lot of noise in one band (e.g. a 60Hz hum) won't interfere with the 
+  //   I automatically reset levels based on recent input volume, even a
+  //   small amount of noise from the external source will eventually light
+  //   up some of the lights, which can ruin the effect of quiet passages
+  //   in the music. The somewhat crude solution is to set a noise threshold
+  //   when no music is playing. Sound must exceed the volume of the noise in
+  //   order to be recognized. This check is done on a per-band basis, so a
+  //   lot of noise in one band (e.g. a 60Hz hum) won't interfere with the
   //   sensitivity of other bands.
   public void startSettingNoiseLevel() {
     if (!trackNoiseLvl) {
@@ -283,4 +299,3 @@ class ColorOrganCalculator {
     minim.stop();
   }
 }
-
