@@ -1,12 +1,12 @@
 package modules.modes.MovieGame;
 
-import java.awt.event.ActionListener;
-import java.awt.event.ActionEvent;
+import java.awt.event.ItemListener;
+import java.awt.event.ItemEvent;
 
 public abstract class PluginModule {
-    private ActionListener menuAction = new ActionListener() {
+    private ItemListener menuAction = new ItemListener() {
         @Override
-        public void actionPerformed (ActionEvent e) {
+        public void itemStateChanged (ItemEvent e) {
 
         }
     };
@@ -35,7 +35,7 @@ public abstract class PluginModule {
         return true;
     }
 
-    public ActionListener getMenuAction () {
+    public ItemListener getMenuAction () {
         return menuAction;
     }
 

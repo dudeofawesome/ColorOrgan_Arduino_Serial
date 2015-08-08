@@ -1,1 +1,1 @@
-processing-java --sketch=/Users/DudeOfAwesome/Github/ColorOrgan_Arduino_Serial/ColorOrgan  --output=/Users/DudeOfAwesome/Github/ColorOrgan_Arduino_Serial/ColorOrgan/-Build --run --force
+processing-java --sketch=/Users/DudeOfAwesome/Github/ColorOrgan_Arduino_Serial/ColorOrgan  --output=/Users/DudeOfAwesome/Github/ColorOrgan_Arduino_Serial/ColorOrgan/build --run --force

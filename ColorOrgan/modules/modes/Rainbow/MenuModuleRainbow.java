@@ -1,19 +1,17 @@
 package modules.modes.Rainbow;
 
-import java.awt.event.ActionListener;
-import java.awt.event.ActionEvent;
+import java.awt.event.ItemListener;
+import java.awt.event.ItemEvent;
 import java.awt.CheckboxMenuItem;
 
 public class MenuModuleRainbow extends PluginModule {
-    private ActionListener menuAction = new ActionListener() {
+    private ItemListener menuAction = new ItemListener() {
         @Override
-        public void actionPerformed (ActionEvent e) {
-            CheckboxMenuItem mi = (CheckboxMenuItem) e.getSource();
-            System.out.println("Rainbow plugin toggling");
-            if (mi.getState()) {
-                System.out.println("Rainbow plugin enabled");
+        public void itemStateChanged (ItemEvent e) {
+            if (e.getStateChange() == e.SELECTED) {
+                System.out.println("Hangouts plugin enabled");
             } else {
-                System.out.println("Rainbow plugin disabled");
+                System.out.println("Hangouts plugin disabled");
             }
         }
     };
@@ -38,7 +36,7 @@ public class MenuModuleRainbow extends PluginModule {
         return true;
     }
 
-    public ActionListener getMenuAction () {
+    public ItemListener getMenuAction () {
         return menuAction;
     }
 

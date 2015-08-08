@@ -40,8 +40,8 @@ class MenuHandler {
       trayMenu.add(pluginsMenu);
 
       loadAudioChannels(inputMenu);
-    //   loadFromLibrary("modes", modesMenu, true);
-    //   loadFromLibrary("plugins", pluginsMenu, true);
+      loadFromLibrary("modes", modesMenu, true);
+      loadFromLibrary("plugins", pluginsMenu, true);
 
       trayMenu.addSeparator();
 
@@ -107,19 +107,15 @@ class MenuHandler {
   }
 
   private void insertRequestedFields (Class<?> cl, Object obj) {
-    ArrayList<Field> fieldsToFill = new ArrayList<Field>();
     Field[] fields = cl.getFields();
     for (int i = 0; i < fields.length; i++) {
       if (fields[i].getName().startsWith("_") && fields[i].getName().endsWith("_")) {
-        fieldsToFill.add(fields[i]);
+        if (fillableFields.containsKey(fields[i].getName())) {
+          try {
+            fields[i].set(obj, fillableFields.get(fields[i].getName()));
+          } catch (IllegalAccessException e) {println(e);}
+        }
       }
-    }
-    for (Field field: fieldsToFill) {
-      try {
-        println("setting " + field.getName());
-        field.set(obj, fillableFields.get(field.getName()));
-        println(fillableFields.get(field.getName()) + " = " + field.get(obj));
-      } catch (IllegalAccessException e) {println(e);}
     }
   }
 }
